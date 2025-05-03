@@ -61,14 +61,19 @@ pipeline {
     }
 
     post {
-        success {
-            echo '✅ Pipeline exécuté avec succès !'
-        }
-        failure {
-            echo '❌ Le pipeline a échoué. Vérifie les logs Jenkins.'
-        }
-        always {
-            sh 'docker system prune -f || true'
+    success {
+        echo '✅ Pipeline exécuté avec succès !'
+    }
+    failure {
+        echo '❌ Le pipeline a échoué. Vérifie les logs Jenkins.'
+    }
+    always {
+        script {
+            node {
+                sh 'docker system prune -f || true'
+            }
         }
     }
+}
+
 }
