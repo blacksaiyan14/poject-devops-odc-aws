@@ -2,9 +2,11 @@ pipeline {
     agent any
     
     environment {
-        DOCKER_BACKEND_IMAGE = 'blacksaiyan/backend'
-        DOCKER_FRONTEND_IMAGE = 'blacksaiyan/frontend'
-        DOCKER_TAG = "${env.BUILD_NUMBER}"
+        DOCKER_REGISTRY = 'https://hub.docker.com/repository/docker/blacksaiyan/projet-fil-rouge-jenkins/'
+        DOCKER_BACKEND_IMAGE = 'blacksaiyan/projet-fil-rouge-jenkins/backend'
+        DOCKER_FRONTEND_IMAGE = 'blacksaiyan/projet-fil-rouge-jenkins/frontend'
+        DOCKER_BACKEND_TAG = "${env.BUILD_NUMBER}"
+        DOCKER_FRONTEND_TAG = "${env.BUILD_NUMBER}"
     }
     
     stages {
@@ -16,33 +18,46 @@ pipeline {
         
         stage('Test Backend') {
             steps {
-                echo 'Skipping tests for now due to environment constraints'
+                dir('Backend/odc') {
+                    sh 'pip3 install -r requirements.txt'
+                    sh 'python3 manage.py test'
+                }
             }
         }
         
         stage('Build Images') {
             steps {
-                echo 'Simulating build of Docker images'
-                echo "Would build: ${DOCKER_BACKEND_IMAGE}:${DOCKER_TAG}"
-                echo "Would build: ${DOCKER_FRONTEND_IMAGE}:${DOCKER_TAG}"
+                // Build Backend Image
+                sh "docker build -t ${DOCKER_REGISTRY}/${DOCKER_BACKEND_IMAGE}:${DOCKER_BACKEND_TAG} -f Backend/odc/Dockerfile Backend/odc"
+                
+                // Build Frontend Image
+                sh "docker build -t ${DOCKER_REGISTRY}/${DOCKER_FRONTEND_IMAGE}:${DOCKER_FRONTEND_TAG} -f Frontend/Dockerfile Frontend"
             }
         }
         
         stage('Push Images') {
             steps {
-                echo 'Simulating push of Docker images'
-                echo "Would push: ${DOCKER_BACKEND_IMAGE}:${DOCKER_TAG}"
-                echo "Would push: ${DOCKER_FRONTEND_IMAGE}:${DOCKER_TAG}"
+                withCredentials([string(credentialsId: 'docker-hub-credentials', variable: 'DOCKER_HUB_CREDENTIALS')]) {
+                    sh 'echo $DOCKER_HUB_CREDENTIALS | docker login -u blacksaiyan --password-stdin'
+                    
+                    // Push Backend Image
+                    sh "docker push ${DOCKER_REGISTRY}/${DOCKER_BACKEND_IMAGE}:${DOCKER_BACKEND_TAG}"
+                    
+                    // Push Frontend Image
+                    sh "docker push ${DOCKER_REGISTRY}/${DOCKER_FRONTEND_IMAGE}:${DOCKER_FRONTEND_TAG}"
+                }
             }
         }
         
         stage('Deploy') {
             steps {
-                echo 'Simulating deployment'
-                echo "Would update docker-compose.yaml with images:"
-                echo "  - ${DOCKER_BACKEND_IMAGE}:${DOCKER_TAG}"
-                echo "  - ${DOCKER_FRONTEND_IMAGE}:${DOCKER_TAG}"
-                echo "Would execute: docker-compose down && docker-compose up -d"
+                // Mettre à jour les tags des images dans docker-compose.yaml
+                sh "sed -i 's|image: backend|image: ${DOCKER_REGISTRY}/${DOCKER_BACKEND_IMAGE}:${DOCKER_BACKEND_TAG}|g' docker-compose.yaml"
+                sh "sed -i 's|image: frontend|image: ${DOCKER_REGISTRY}/${DOCKER_FRONTEND_IMAGE}:${DOCKER_FRONTEND_TAG}|g' docker-compose.yaml"
+                
+                // Déployer avec docker-compose
+                sh 'docker-compose down'
+                sh 'docker-compose up -d'
             }
         }
     }
@@ -55,7 +70,8 @@ pipeline {
             echo 'Le pipeline a échoué. Veuillez vérifier les logs.'
         }
         always {
-            echo 'Pipeline completed - would normally clean up Docker resources here'
+            // Nettoyage des images Docker non utilisées
+            sh 'docker system prune -f'
         }
     }
 }
