@@ -11,6 +11,13 @@ pipeline {
     
     stages {
         stage ('Checkout') {
+            agent {
+    docker {
+        image 'python:3.10-slim'
+        args '-u root'
+    }
+}
+
             steps {
                 git branch: 'jenkins', url: 'https://github.com/blacksaiyan14/poject-devops-odc-aws.git'
             }
