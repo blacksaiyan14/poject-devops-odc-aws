@@ -32,12 +32,13 @@ pipeline {
         }
         */
 
-        stage('Build Images') {
+        stage('Build des images') {
             steps {
                 script {
-                    // Ajoutez --no-cache si les problèmes persistent
-                    sh "docker build --no-cache -t ${DOCKER_FRONTEND_IMAGE}:${DOCKER_FRONTEND_TAG} -f Frontend/Dockerfile Frontend"
-                    sh "docker build -t ${DOCKER_BACKEND_IMAGE}:${DOCKER_BACKEND_TAG} -f Backend/odc/Dockerfile Backend/odc"
+                    // Ajoutez --no-cache si nécessaire pour forcer une reconstruction complète
+                    sh 'docker build --no-cache -t $FRONTEND_IMAGE:latest -f Frontend/Dockerfile Frontend'
+                    sh 'docker build --no-cache -t $BACKEND_IMAGE:latest -f Backend/odc/Dockerfile Backend/odc'
+                    sh 'docker build --no-cache -t $MIGRATE_IMAGE:latest -f Backend/odc/Dockerfile Backend/odc'
                 }
             }
         }
