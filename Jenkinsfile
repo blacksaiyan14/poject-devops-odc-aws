@@ -16,42 +16,49 @@ pipeline {
             }
         }
 
-        // stage('Test Backend') {
-        //     steps {
-        //         dir('Backend/odc') {
-        //             sh 'sudo apt-get update && sudo apt-get install -y gcc python3-dev libpq-dev' // pour psycopg2
-        //             sh 'pip install --upgrade pip'
-        //             sh 'pip install -r requirements.txt'
-        //             sh 'python manage.py test'
-        //         }
-        //     }
-        // }
-
         stage('Build Images') {
             steps {
-                sh "docker build -t ${DOCKER_BACKEND_IMAGE}:${DOCKER_BACKEND_TAG} -f Backend/odc/Dockerfile Backend/odc"
-                sh "docker build -t ${DOCKER_FRONTEND_IMAGE}:${DOCKER_FRONTEND_TAG} -f Frontend/Dockerfile Frontend"
+                script {
+                    // Construction avec Buildx pour multi-architecture (optionnel)
+                    docker.build("${DOCKER_BACKEND_IMAGE}:${DOCKER_BACKEND_TAG}", "-f Backend/odc/Dockerfile Backend/odc")
+                    docker.build("${DOCKER_FRONTEND_IMAGE}:${DOCKER_FRONTEND_TAG}", "-f Frontend/Dockerfile Frontend")
+                }
             }
         }
 
         stage('Push Images') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', passwordVariable: 'DOCKER_HUB_PASSWORD', usernameVariable: 'DOCKER_HUB_USERNAME')]) {
-                    sh 'mkdir -p /tmp/docker'
-                    sh 'echo "$DOCKER_HUB_PASSWORD" | docker --config /tmp/docker login -u "$DOCKER_HUB_USERNAME" --password-stdin'
-                    sh 'docker --config /tmp/docker push ${DOCKER_BACKEND_IMAGE}:${DOCKER_BACKEND_TAG}'
-                    sh 'docker --config /tmp/docker push ${DOCKER_FRONTEND_IMAGE}:${DOCKER_FRONTEND_TAG}'
+                withCredentials([usernamePassword(
+                    credentialsId: 'docker-hub-credentials',
+                    passwordVariable: 'DOCKER_HUB_PASSWORD',
+                    usernameVariable: 'DOCKER_HUB_USERNAME'
+                )]) {
+                    script {
+                        // Version améliorée avec gestion propre des credentials
+                        docker.withRegistry("https://${DOCKER_REGISTRY}", 'docker-hub-credentials') {
+                            docker.image("${DOCKER_BACKEND_IMAGE}:${DOCKER_BACKEND_TAG}").push()
+                            docker.image("${DOCKER_FRONTEND_IMAGE}:${DOCKER_FRONTEND_TAG}").push()
+                        }
+                    }
                 }
             }
         }
 
         stage('Deploy') {
             steps {
-                sh "sed -i 's|image: backend.*|image: ${DOCKER_BACKEND_IMAGE}:${DOCKER_BACKEND_TAG}|g' docker-compose.yaml"
-                sh "sed -i 's|image: frontend.*|image: ${DOCKER_FRONTEND_IMAGE}:${DOCKER_FRONTEND_TAG}|g' docker-compose.yaml"
-
-                sh 'docker-compose down'
-                sh 'docker-compose up -d'
+                script {
+                    // Utilisation de variables pour une meilleure lisibilité
+                    def composeFile = 'docker-compose.yaml'
+                    
+                    sh """
+                        sed -i 's|image: ${DOCKER_BACKEND_IMAGE}:.*|image: ${DOCKER_BACKEND_IMAGE}:${DOCKER_BACKEND_TAG}|g' ${composeFile}
+                        sed -i 's|image: ${DOCKER_FRONTEND_IMAGE}:.*|image: ${DOCKER_FRONTEND_IMAGE}:${DOCKER_FRONTEND_TAG}|g' ${composeFile}
+                    """
+                    
+                    // Meilleure gestion des containers existants
+                    sh 'docker-compose down --remove-orphans || true'
+                    sh 'docker-compose up -d --build'
+                }
             }
         }
     }
@@ -59,13 +66,19 @@ pipeline {
     post {
         success {
             echo '✅ Pipeline exécuté avec succès !'
+            slackSend(color: 'good', message: "Build ${BUILD_NUMBER} réussi - Images poussées sur Docker Hub")
         }
         failure {
             echo '❌ Le pipeline a échoué. Vérifie les logs Jenkins.'
+            slackSend(color: 'danger', message: "Échec du build ${BUILD_NUMBER} - Vérifiez Jenkins")
         }
         always {
             script {
-                sh 'docker system prune -f || true'
+                // Nettoyage plus complet
+                sh '''
+                    docker system prune -af || true
+                    rm -rf /tmp/docker || true
+                '''
             }
         }
     }
