@@ -32,11 +32,13 @@ pipeline {
         }
         */
 
-        stage('Build des images') {
+        stage('Build Images') {
             steps {
-                sh 'docker build -t $BACKEND_IMAGE:latest ./Backend/odc'
-                sh 'docker build -t $FRONTEND_IMAGE:latest ./Frontend'
-                sh 'docker build -t $MIGRATE_IMAGE:latest ./Backend/odc'
+                script {
+                    // Ajoutez --no-cache si les problèmes persistent
+                    sh "docker build --no-cache -t ${DOCKER_FRONTEND_IMAGE}:${DOCKER_FRONTEND_TAG} -f Frontend/Dockerfile Frontend"
+                    sh "docker build -t ${DOCKER_BACKEND_IMAGE}:${DOCKER_BACKEND_TAG} -f Backend/odc/Dockerfile Backend/odc"
+                }
             }
         }
 
