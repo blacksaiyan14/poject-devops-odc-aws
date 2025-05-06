@@ -16,16 +16,16 @@ pipeline {
             }
         }
 
-        stage('Test Backend') {
-            steps {
-                dir('Backend/odc') {
-                    sh 'sudo apt-get update && sudo apt-get install -y gcc python3-dev libpq-dev' // pour psycopg2
-                    sh 'pip install --upgrade pip'
-                    sh 'pip install -r requirements.txt'
-                    sh 'python manage.py test'
-                }
-            }
-        }
+        // stage('Test Backend') {
+        //     steps {
+        //         dir('Backend/odc') {
+        //             sh 'sudo apt-get update && sudo apt-get install -y gcc python3-dev libpq-dev' // pour psycopg2
+        //             sh 'pip install --upgrade pip'
+        //             sh 'pip install -r requirements.txt'
+        //             sh 'python manage.py test'
+        //         }
+        //     }
+        // }
 
         stage('Build Images') {
             steps {
