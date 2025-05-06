@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.10-slim'
-            args '-u root'
-        }
-    }
+    agent any
 
     environment {
         DOCKER_REGISTRY = 'docker.io'
@@ -24,7 +19,7 @@ pipeline {
         stage('Test Backend') {
             steps {
                 dir('Backend/odc') {
-                    sh 'apt-get update && apt-get install -y gcc python3-dev libpq-dev' // nécessaire si psycopg2
+                    sh 'sudo apt-get update && sudo apt-get install -y gcc python3-dev libpq-dev' // pour psycopg2
                     sh 'pip install --upgrade pip'
                     sh 'pip install -r requirements.txt'
                     sh 'python manage.py test'
@@ -61,19 +56,16 @@ pipeline {
     }
 
     post {
-    success {
-        echo '✅ Pipeline exécuté avec succès !'
-    }
-    failure {
-        echo '❌ Le pipeline a échoué. Vérifie les logs Jenkins.'
-    }
-    always {
-        script {
-            node {
+        success {
+            echo '✅ Pipeline exécuté avec succès !'
+        }
+        failure {
+            echo '❌ Le pipeline a échoué. Vérifie les logs Jenkins.'
+        }
+        always {
+            script {
                 sh 'docker system prune -f || true'
             }
         }
     }
-}
-
 }
