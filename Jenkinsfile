@@ -2,12 +2,17 @@ pipeline {
     agent any
     environment {
         REGISTRY = 'blacksaiyan/projet-fil-rouge-jenkins'
+        BUILD_NUMBER = "${env.BUILD_NUMBER}"
         
-        // ➡️ Définir les images avec le numéro de build Jenkins
-        BACK_IMAGE = "${REGISTRY}:backend-${BUILD_NUMBER}"
-        FRONT_IMAGE = "${REGISTRY}:frontend-${BUILD_NUMBER}"
-        BACK_LATEST = "${REGISTRY}:backend-latest"
-        FRONT_LATEST = "${REGISTRY}:frontend-latest"
+        // Images Docker avec le numéro de build
+        BACKEND_IMAGE = "${REGISTRY}:backend-${BUILD_NUMBER}"
+        FRONTEND_IMAGE = "${REGISTRY}:frontend-${BUILD_NUMBER}"
+        MIGRATE_IMAGE = "${REGISTRY}:migrate-${BUILD_NUMBER}"
+        
+        // Images Docker avec le tag "latest"
+        BACKEND_LATEST = "${REGISTRY}:backend-latest"
+        FRONTEND_LATEST = "${REGISTRY}:frontend-latest"
+        MIGRATE_LATEST = "${REGISTRY}:migrate-latest"
     }
 
     stages {
@@ -41,22 +46,36 @@ pipeline {
             }
         }
 
-        stage('Build & Push Docker Images') {
+        stage('Build Docker Images') {
             steps {
                 script {
-                    docker.withRegistry([credentialsId: 'dockerhub-creds', url: '']) {
+                    docker.withRegistry('', 'dockerhub-creds') {
+                        // Backend
+                        def back = docker.build("${BACKEND_IMAGE}", 'Backend/odc')
+                        back.tag("${BACKEND_LATEST}")
                         
-                        // ➡️ Build & Push Backend
-                        def back = docker.build("${BACK_IMAGE}", 'Backend/odc')
-                        back.push()
-                        back.tag("${BACK_LATEST}")
-                        back.push("${BACK_LATEST}")
+                        // Frontend
+                        def front = docker.build("${FRONTEND_IMAGE}", 'Frontend')
+                        front.tag("${FRONTEND_LATEST}")
 
-                        // ➡️ Build & Push Frontend
-                        def front = docker.build("${FRONT_IMAGE}", 'Frontend')
-                        front.push()
-                        front.tag("${FRONT_LATEST}")
-                        front.push("${FRONT_LATEST}")
+                        // Migrate
+                        def migrate = docker.build("${MIGRATE_IMAGE}", 'Migrate')
+                        migrate.tag("${MIGRATE_LATEST}")
+                    }
+                }
+            }
+        }
+
+        stage('Push des images sur Docker Hub') {
+            steps {
+                script {
+                    docker.withRegistry('', 'dockerhub-creds') {
+                        sh 'docker push $BACKEND_IMAGE'
+                        sh 'docker push $BACKEND_LATEST'
+                        sh 'docker push $FRONTEND_IMAGE'
+                        sh 'docker push $FRONTEND_LATEST'
+                        sh 'docker push $MIGRATE_IMAGE'
+                        sh 'docker push $MIGRATE_LATEST'
                     }
                 }
             }
@@ -66,19 +85,20 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        # ➡️ Arrêt et suppression des anciens conteneurs
                         docker stop backend_container || true
                         docker rm backend_container || true
                         docker stop frontend_container || true
                         docker rm frontend_container || true
+                        docker stop migrate_container || true
+                        docker rm migrate_container || true
 
-                        # ➡️ Pull des dernières versions
                         docker pull blacksaiyan/projet-fil-rouge-jenkins:backend-latest
                         docker pull blacksaiyan/projet-fil-rouge-jenkins:frontend-latest
+                        docker pull blacksaiyan/projet-fil-rouge-jenkins:migrate-latest
 
-                        # ➡️ Lancement des nouveaux conteneurs
                         docker run -d --name backend_container -p 8000:8000 blacksaiyan/projet-fil-rouge-jenkins:backend-latest
                         docker run -d --name frontend_container -p 3000:3000 blacksaiyan/projet-fil-rouge-jenkins:frontend-latest
+                        docker run -d --name migrate_container blacksaiyan/projet-fil-rouge-jenkins:migrate-latest
                     '''
                 }
             }
