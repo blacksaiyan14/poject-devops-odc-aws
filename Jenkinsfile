@@ -44,7 +44,7 @@ pipeline {
         stage('Build & Push Docker Images') {
             steps {
                 script {
-                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                    docker.withRegistry([credentialsId: 'dockerhub-creds', url: '']) {
                         
                         // ➡️ Build & Push Backend
                         def back = docker.build("${BACK_IMAGE}", 'Backend/odc')
