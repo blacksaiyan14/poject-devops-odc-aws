@@ -17,7 +17,7 @@ pipeline {
         }
 
         stage('Test Backend') {
-            agent { label 'docker-agent' }
+            // agent { label 'docker-agent' }
             steps {
                 dir('Backend/odc') {
                     sh '''
@@ -31,7 +31,7 @@ pipeline {
         }
 
         stage('Test Frontend') {
-            agent { label 'docker-agent' }
+            // agent { label 'docker-agent' }
             steps {
                 dir('Frontend') {
                     sh '''
