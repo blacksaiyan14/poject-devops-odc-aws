@@ -35,14 +35,6 @@ pipeline {
             steps {
                 dir('Frontend') {
                     sh '''
-                        # Vérification si npm est installé
-                        if ! command -v npm &> /dev/null
-                        then
-                            echo "⚠️ npm non trouvé, installation de Node.js..."
-                            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-                            sudo apt-get install -y nodejs
-                        fi
-                        
                         # Installation des dépendances et tests
                         npm ci
                         npm run test || echo "⚠️ Aucun test défini pour le frontend"
