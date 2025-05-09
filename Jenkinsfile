@@ -49,7 +49,7 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    docker.withRegistry('', 'dockerhub-creds') {
+                    docker.withRegistry('', 'dockerhub-credss') {
                         // Backend
                         def back = docker.build("${BACKEND_IMAGE}", 'Backend/odc')
                         back.tag("${BACKEND_LATEST}")
