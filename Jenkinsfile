@@ -60,41 +60,46 @@ pipeline {
 
         stage('Push des images sur Docker Hub') {
             steps {
-                withCredentials([string(credentialsId: 'dockerhub-credss', variable: 'DOCKER_HUB_PASS')]) {
-                    sh 'echo $DOCKER_HUB_PASS | docker login -u blacksaiyan --password-stdin'
-                    
-                    // Vérifier si les images existent avant de les pousser
-                    sh '''
-                        # Vérifier et pousser l'image backend avec le numéro de build
-                        if docker image inspect $BACKEND_IMAGE &> /dev/null; then
-                            docker push $BACKEND_IMAGE
-                        else
-                            echo "L'image $BACKEND_IMAGE n'existe pas, elle sera ignorée"
-                        fi
+                script {
+                    // Utiliser les identifiants Docker Hub stockés dans Jenkins
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credss', passwordVariable: 'DOCKER_HUB_PASS', usernameVariable: 'DOCKER_HUB_USER')]) {
+                        // Se connecter à Docker Hub avec les identifiants
+                        sh 'echo $DOCKER_HUB_PASS | docker login -u $DOCKER_HUB_USER --password-stdin'
                         
-                        # Vérifier et pousser l'image backend latest
-                        if docker image inspect ${REGISTRY}:backend-latest &> /dev/null; then
-                            docker push ${REGISTRY}:backend-latest
-                        else
-                            echo "L'image ${REGISTRY}:backend-latest n'existe pas, elle sera ignorée"
-                        fi
+                        // Afficher les informations de débogage
+                        sh 'echo "Utilisateur Docker Hub: $DOCKER_HUB_USER"'
+                        sh 'echo "Images à pousser: $BACKEND_IMAGE, $FRONTEND_IMAGE"'
                         
-                        # Vérifier et pousser l'image frontend avec le numéro de build
-                        if docker image inspect $FRONTEND_IMAGE &> /dev/null; then
-                            docker push $FRONTEND_IMAGE
-                        else
-                            echo "L'image $FRONTEND_IMAGE n'existe pas, elle sera ignorée"
-                        fi
+                        // Essayer de pousser les images avec gestion d'erreur
+                        sh '''
+                            # Fonction pour pousser une image avec gestion d'erreur
+                            push_image() {
+                                local image=$1
+                                echo "Tentative de push pour l'image: $image"
+                                if docker image inspect $image &> /dev/null; then
+                                    if docker push $image; then
+                                        echo "✅ Push réussi pour $image"
+                                        return 0
+                                    else
+                                        echo "❌ Échec du push pour $image"
+                                        return 1
+                                    fi
+                                else
+                                    echo "⚠️ L'image $image n'existe pas localement"
+                                    return 0  # Ne pas échouer si l'image n'existe pas
+                                fi
+                            }
+                            
+                            # Pousser les images
+                            push_image "$BACKEND_IMAGE" || true
+                            push_image "${REGISTRY}:backend-latest" || true
+                            push_image "$FRONTEND_IMAGE" || true
+                            push_image "${REGISTRY}:frontend-latest" || true
+                        '''
                         
-                        # Vérifier et pousser l'image frontend latest
-                        if docker image inspect ${REGISTRY}:frontend-latest &> /dev/null; then
-                            docker push ${REGISTRY}:frontend-latest
-                        else
-                            echo "L'image ${REGISTRY}:frontend-latest n'existe pas, elle sera ignorée"
-                        fi
-                    '''
-                    
-                    sh 'docker logout'
+                        // Se déconnecter de Docker Hub
+                        //sh 'docker logout'
+                    }
                 }
             }
         }
