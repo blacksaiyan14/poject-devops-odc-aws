@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        REGISTRY = 'blacksaiyan/projet-fil-rouge-jenkins'
+        REGISTRY = 'blacksaiyan/projet-fil-rouge-jenkins/tags'
         BUILD_NUMBER = "${env.BUILD_NUMBER}"
         
         // Images Docker avec le numéro de build
