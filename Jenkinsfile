@@ -62,10 +62,38 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'dockerhub-credss', variable: 'DOCKER_HUB_PASS')]) {
                     sh 'echo $DOCKER_HUB_PASS | docker login -u blacksaiyan --password-stdin'
-                    sh 'docker push $BACKEND_IMAGE'
-                    sh "docker push ${REGISTRY}:backend-latest"
-                    sh 'docker push $FRONTEND_IMAGE'
-                    sh "docker push ${REGISTRY}:frontend-latest"
+                    
+                    // Vérifier si les images existent avant de les pousser
+                    sh '''
+                        # Vérifier et pousser l'image backend avec le numéro de build
+                        if docker image inspect $BACKEND_IMAGE &> /dev/null; then
+                            docker push $BACKEND_IMAGE
+                        else
+                            echo "L'image $BACKEND_IMAGE n'existe pas, elle sera ignorée"
+                        fi
+                        
+                        # Vérifier et pousser l'image backend latest
+                        if docker image inspect ${REGISTRY}:backend-latest &> /dev/null; then
+                            docker push ${REGISTRY}:backend-latest
+                        else
+                            echo "L'image ${REGISTRY}:backend-latest n'existe pas, elle sera ignorée"
+                        fi
+                        
+                        # Vérifier et pousser l'image frontend avec le numéro de build
+                        if docker image inspect $FRONTEND_IMAGE &> /dev/null; then
+                            docker push $FRONTEND_IMAGE
+                        else
+                            echo "L'image $FRONTEND_IMAGE n'existe pas, elle sera ignorée"
+                        fi
+                        
+                        # Vérifier et pousser l'image frontend latest
+                        if docker image inspect ${REGISTRY}:frontend-latest &> /dev/null; then
+                            docker push ${REGISTRY}:frontend-latest
+                        else
+                            echo "L'image ${REGISTRY}:frontend-latest n'existe pas, elle sera ignorée"
+                        fi
+                    '''
+                    
                     sh 'docker logout'
                 }
             }
