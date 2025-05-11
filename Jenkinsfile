@@ -201,7 +201,7 @@ EOF
                             echo "Démarrage du conteneur frontend sur le port $FRONTEND_PORT..."
                             docker run -d --name frontend_container \
                                 --network odc-network \
-                                -p $FRONTEND_PORT:3000 \
+                                -p $FRONTEND_PORT:5173 \
                                 $FRONTEND_LATEST
                         else
                             echo "⚠️ L'image frontend $FRONTEND_LATEST n'existe pas localement."
@@ -212,7 +212,7 @@ EOF
                                 echo "Démarrage du conteneur frontend sur le port $FRONTEND_PORT..."
                                 docker run -d --name frontend_container \
                                     --network odc-network \
-                                    -p $FRONTEND_PORT:3000 \
+                                    -p $FRONTEND_PORT:5173 \
                                     $FRONTEND_IMAGE
                             else
                                 echo "❌ Aucune image frontend disponible. Le frontend ne sera pas déployé."
