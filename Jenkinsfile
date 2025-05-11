@@ -52,15 +52,15 @@ pipeline {
                     docker.withRegistry('', 'dockerhub-credss') {
                         // Backend
                         def back = docker.build("${BACKEND_IMAGE}", 'Backend/odc')
-                        back.tag("${BACKEND_LATEST}")
+                        back.tag("backend-latest")
                         
                         // Frontend
                         def front = docker.build("${FRONTEND_IMAGE}", 'Frontend')
-                        front.tag("${FRONTEND_LATEST}")
+                        front.tag("frontend-latest")
 
                         // Migrate
                         def migrate = docker.build("${MIGRATE_IMAGE}", 'Migrate')
-                        migrate.tag("${MIGRATE_LATEST}")
+                        migrate.tag("migrate-latest")
                     }
                 }
             }
@@ -71,11 +71,11 @@ pipeline {
                 script {
                     docker.withRegistry('', 'dockerhub-credss') {
                         sh 'docker push $BACKEND_IMAGE'
-                        sh 'docker push $BACKEND_LATEST'
+                        sh "docker push ${REGISTRY}:backend-latest"
                         sh 'docker push $FRONTEND_IMAGE'
-                        sh 'docker push $FRONTEND_LATEST'
+                        sh "docker push ${REGISTRY}:frontend-latest"
                         sh 'docker push $MIGRATE_IMAGE'
-                        sh 'docker push $MIGRATE_LATEST'
+                        sh "docker push ${REGISTRY}:migrate-latest"
                     }
                 }
             }
@@ -91,15 +91,15 @@ pipeline {
                         docker rm frontend_container || true
                         docker stop migrate_container || true
                         docker rm migrate_container || true
-
-                        docker pull blacksaiyan/projet-fil-rouge-jenkins:backend-latest
-                        docker pull blacksaiyan/projet-fil-rouge-jenkins:frontend-latest
-                        docker pull blacksaiyan/projet-fil-rouge-jenkins:migrate-latest
-
-                        docker run -d --name backend_container -p 8000:8000 blacksaiyan/projet-fil-rouge-jenkins:backend-latest
-                        docker run -d --name frontend_container -p 3000:3000 blacksaiyan/projet-fil-rouge-jenkins:frontend-latest
-                        docker run -d --name migrate_container blacksaiyan/projet-fil-rouge-jenkins:migrate-latest
                     '''
+                    
+                    sh "docker pull ${REGISTRY}:backend-latest"
+                    sh "docker pull ${REGISTRY}:frontend-latest"
+                    sh "docker pull ${REGISTRY}:migrate-latest"
+
+                    sh "docker run -d --name backend_container -p 8000:8000 ${REGISTRY}:backend-latest"
+                    sh "docker run -d --name frontend_container -p 3000:3000 ${REGISTRY}:frontend-latest"
+                    sh "docker run -d --name migrate_container ${REGISTRY}:migrate-latest"
                 }
             }
         }
