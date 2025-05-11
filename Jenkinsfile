@@ -62,33 +62,35 @@ pipeline {
 
         stage('Push des images sur Docker Hub') {
             steps {
-                script {
-                    docker.withRegistry('', 'dockerhub-credss') {
-                        sh 'docker push $BACKEND_IMAGE'
-                        sh "docker push ${REGISTRY}:backend-latest"
-                        sh 'docker push $FRONTEND_IMAGE'
-                        sh "docker push ${REGISTRY}:frontend-latest"
-                    }
+                withCredentials([string(credentialsId: 'dockerhub-credss', variable: 'DOCKER_HUB_PASS')]) {
+                    sh 'echo $DOCKER_HUB_PASS | docker login -u blacksaiyan --password-stdin'
+                    sh 'docker push $BACKEND_IMAGE'
+                    sh "docker push ${REGISTRY}:backend-latest"
+                    sh 'docker push $FRONTEND_IMAGE'
+                    sh "docker push ${REGISTRY}:frontend-latest"
+                    sh 'docker logout'
                 }
             }
         }
 
         stage('Deploy Containers Locally') {
             steps {
-                script {
-                    sh '''
-                        docker stop backend_container || true
-                        docker rm backend_container || true
-                        docker stop frontend_container || true
-                        docker rm frontend_container || true
-                    '''
+                sh '''
+                    # Arrêt et suppression des conteneurs existants
+                    docker stop backend_container frontend_container || true
+                    docker rm backend_container frontend_container || true
                     
-                    sh "docker pull ${REGISTRY}:backend-latest"
-                    sh "docker pull ${REGISTRY}:frontend-latest"
+                    # Récupération des dernières images
+                    docker pull blacksaiyan/projet-fil-rouge-jenkins:backend-latest
+                    docker pull blacksaiyan/projet-fil-rouge-jenkins:frontend-latest
 
-                    sh "docker run -d --name backend_container -p 8000:8000 ${REGISTRY}:backend-latest"
-                    sh "docker run -d --name frontend_container -p 3000:3000 ${REGISTRY}:frontend-latest"
-                }
+                    # Démarrage des nouveaux conteneurs
+                    docker run -d --name backend_container -p 8000:8000 blacksaiyan/projet-fil-rouge-jenkins:backend-latest
+                    docker run -d --name frontend_container -p 3000:3000 blacksaiyan/projet-fil-rouge-jenkins:frontend-latest
+                    
+                    # Vérification que les conteneurs sont bien démarrés
+                    docker ps | grep -E 'backend_container|frontend_container'
+                '''
             }
         }
     }
