@@ -77,8 +77,20 @@ pipeline {
                             sh '''
                                 echo "Tentative de connexion à Docker Hub avec l'utilisateur: $DOCKER_HUB_USER"
                                 echo "Vérification du dépôt: $REGISTRY"
-                                echo $DOCKER_HUB_PASS | docker login -u $DOCKER_HUB_USER --password-stdin || echo "Échec de la connexion à Docker Hub"
-                                docker info | grep Username || echo "Non connecté à Docker Hub"
+                                
+                                # Nettoyer les anciennes configurations Docker
+                                rm -f ~/.docker/config.json || true
+                                
+                                # Se connecter à Docker Hub
+                                echo $DOCKER_HUB_PASS | docker login -u $DOCKER_HUB_USER --password-stdin
+                                
+                                # Vérifier si la connexion a réussi
+                                if [ -f ~/.docker/config.json ]; then
+                                    echo "Configuration Docker trouvée, vérification des identifiants"
+                                    cat ~/.docker/config.json | grep -v "auth" || echo "Pas d'identifiants trouvés"
+                                else
+                                    echo "Fichier de configuration Docker non trouvé"
+                                fi
                             '''
                             
                             // Pousser les images vers le nouveau dépôt avec des commandes individuelles
