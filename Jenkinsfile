@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        REGISTRY = 'blacksaiyan/projet-fil-rouge-jenkins/tags'
+        REGISTRY = 'blacksaiyan/projet-fil-rouge-jenkins'
         BUILD_NUMBER = "${env.BUILD_NUMBER}"
         
         // Images Docker avec le numéro de build
@@ -69,7 +69,7 @@ pipeline {
         stage('Push des images sur Docker Hub') {
             steps {
                 script {
-                    docker.withRegistry('', 'dockerhub-creds') {
+                    docker.withRegistry('', 'dockerhub-credss') {
                         sh 'docker push $BACKEND_IMAGE'
                         sh 'docker push $BACKEND_LATEST'
                         sh 'docker push $FRONTEND_IMAGE'
