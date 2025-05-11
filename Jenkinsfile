@@ -158,7 +158,7 @@ EOF
                             -e POSTGRES_DB=odcdb \
                             -e POSTGRES_USER=odc \
                             -e POSTGRES_PASSWORD=odc123 \
-                            postgres:13
+                            postgres:15
                     '''
                     
                     // Vérifier et déployer le backend
