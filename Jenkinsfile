@@ -74,7 +74,12 @@ pipeline {
                     // Push des images vers Docker Hub
                     try {
                         withCredentials([usernamePassword(credentialsId: 'docker-creds', passwordVariable: 'DOCKER_HUB_PASS', usernameVariable: 'DOCKER_HUB_USER')]) {
-                            sh 'echo $DOCKER_HUB_PASS | docker login -u $DOCKER_HUB_USER --password-stdin || true'
+                            sh '''
+                                echo "Tentative de connexion à Docker Hub avec l'utilisateur: $DOCKER_HUB_USER"
+                                echo "Vérification du dépôt: $REGISTRY"
+                                echo $DOCKER_HUB_PASS | docker login -u $DOCKER_HUB_USER --password-stdin || echo "Échec de la connexion à Docker Hub"
+                                docker info | grep Username || echo "Non connecté à Docker Hub"
+                            '''
                             
                             // Pousser les images vers le nouveau dépôt avec des commandes individuelles
                             sh '''
