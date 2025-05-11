@@ -6,7 +6,7 @@ echo "Attente de la base de données..."
 # Attendre que la base de données soit disponible
 for i in {1..30}; do
   echo "Tentative de connexion à la base de données... $i/30"
-  python -c "import psycopg2; psycopg2.connect(dbname='odcdb', user='odc', password='odc123', host='database', port='5432')" && break
+  python -c "import psycopg2; psycopg2.connect(dbname='odcdb', user='odc', password='odc123', host='database_container', port='5432')" && break
   sleep 2
 done
 

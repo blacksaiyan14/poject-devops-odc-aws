@@ -144,8 +144,8 @@ EOF
                     echo "ℹ️ Démarrage du déploiement local des conteneurs"
                     
                     // Arrêt et suppression des conteneurs existants
-                    sh "docker stop backend_container frontend_container database_container || true"
-                    sh "docker rm backend_container frontend_container database_container || true"
+                    sh "docker stop backend_container frontend_container database || true"
+                    sh "docker rm backend_container frontend_container database || true"
                     
                     // Créer un réseau Docker si nécessaire
                     sh "docker network create odc-network || true"
@@ -153,7 +153,7 @@ EOF
                     // Déployer la base de données PostgreSQL
                     sh '''
                         echo "Démarrage du conteneur PostgreSQL..."
-                        docker run -d --name database_container \
+                        docker run -d --name database \
                             --network odc-network \
                             -e POSTGRES_DB=odcdb \
                             -e POSTGRES_USER=odc \
