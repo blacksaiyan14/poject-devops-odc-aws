@@ -82,11 +82,12 @@ pipeline {
                                 mkdir -p /tmp/docker-config
                                 
                                 # Créer un fichier de configuration Docker personnalisé
+                                AUTH_BASE64=$(echo -n "$DOCKER_HUB_USER:$DOCKER_HUB_PASS" | base64)
                                 cat > /tmp/docker-config/config.json << EOF
 {
   "auths": {
     "https://index.docker.io/v1/": {
-      "auth": "$(echo -n "$DOCKER_HUB_USER:$DOCKER_HUB_PASS" | base64)"
+      "auth": "$AUTH_BASE64"
     }
   }
 }
@@ -96,7 +97,7 @@ EOF
                                 export DOCKER_CONFIG=/tmp/docker-config
                                 
                                 # Vérifier la connexion
-                                docker login -u $DOCKER_HUB_USER --password-stdin < <(echo $DOCKER_HUB_PASS) || echo "Erreur de connexion"
+                                echo $DOCKER_HUB_PASS | docker login -u $DOCKER_HUB_USER --password-stdin || echo "Erreur de connexion"
                             '''
                             
                             // Pousser les images vers le nouveau dépôt avec des commandes individuelles
