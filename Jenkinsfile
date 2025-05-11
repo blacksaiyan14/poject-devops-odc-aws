@@ -144,8 +144,22 @@ EOF
                     echo "ℹ️ Démarrage du déploiement local des conteneurs"
                     
                     // Arrêt et suppression des conteneurs existants
-                    sh "docker stop backend_container frontend_container || true"
-                    sh "docker rm backend_container frontend_container || true"
+                    sh "docker stop backend_container frontend_container database_container || true"
+                    sh "docker rm backend_container frontend_container database_container || true"
+                    
+                    // Créer un réseau Docker si nécessaire
+                    sh "docker network create odc-network || true"
+                    
+                    // Déployer la base de données PostgreSQL
+                    sh '''
+                        echo "Démarrage du conteneur PostgreSQL..."
+                        docker run -d --name database_container \
+                            --network odc-network \
+                            -e POSTGRES_DB=odcdb \
+                            -e POSTGRES_USER=odc \
+                            -e POSTGRES_PASSWORD=odc123 \
+                            postgres:13
+                    '''
                     
                     // Vérifier et déployer le backend
                     sh '''
@@ -156,15 +170,20 @@ EOF
                         if docker image inspect $BACKEND_LATEST &> /dev/null; then
                             echo "✅ Image backend trouvée: $BACKEND_LATEST"
                             echo "Démarrage du conteneur backend sur le port $BACKEND_PORT..."
-                            docker run -d --name backend_container -p $BACKEND_PORT:$BACKEND_PORT $BACKEND_LATEST
+                            docker run -d --name backend_container \
+                                --network odc-network \
+                                -p $BACKEND_PORT:$BACKEND_PORT \
+                                $BACKEND_LATEST
                         else
                             echo "⚠️ L'image backend $BACKEND_LATEST n'existe pas localement."
                             echo "Tentative d'utilisation de l'image avec le numéro de build: $BACKEND_IMAGE"
-                            
                             if docker image inspect $BACKEND_IMAGE &> /dev/null; then
                                 echo "✅ Image backend trouvée: $BACKEND_IMAGE"
                                 echo "Démarrage du conteneur backend sur le port $BACKEND_PORT..."
-                                docker run -d --name backend_container -p $BACKEND_PORT:$BACKEND_PORT $BACKEND_IMAGE
+                                docker run -d --name backend_container \
+                                    --network odc-network \
+                                    -p $BACKEND_PORT:$BACKEND_PORT \
+                                    $BACKEND_IMAGE
                             else
                                 echo "❌ Aucune image backend disponible. Le backend ne sera pas déployé."
                             fi
@@ -180,7 +199,10 @@ EOF
                         if docker image inspect $FRONTEND_LATEST &> /dev/null; then
                             echo "✅ Image frontend trouvée: $FRONTEND_LATEST"
                             echo "Démarrage du conteneur frontend sur le port $FRONTEND_PORT..."
-                            docker run -d --name frontend_container -p $FRONTEND_PORT:5173 $FRONTEND_LATEST
+                            docker run -d --name frontend_container \
+                                --network odc-network \
+                                -p $FRONTEND_PORT:3000 \
+                                $FRONTEND_LATEST
                         else
                             echo "⚠️ L'image frontend $FRONTEND_LATEST n'existe pas localement."
                             echo "Tentative d'utilisation de l'image avec le numéro de build: $FRONTEND_IMAGE"
@@ -188,7 +210,10 @@ EOF
                             if docker image inspect $FRONTEND_IMAGE &> /dev/null; then
                                 echo "✅ Image frontend trouvée: $FRONTEND_IMAGE"
                                 echo "Démarrage du conteneur frontend sur le port $FRONTEND_PORT..."
-                                docker run -d --name frontend_container -p $FRONTEND_PORT:5173 $FRONTEND_IMAGE
+                                docker run -d --name frontend_container \
+                                    --network odc-network \
+                                    -p $FRONTEND_PORT:3000 \
+                                    $FRONTEND_IMAGE
                             else
                                 echo "❌ Aucune image frontend disponible. Le frontend ne sera pas déployé."
                             fi
