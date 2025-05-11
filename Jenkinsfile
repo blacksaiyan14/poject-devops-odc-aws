@@ -47,15 +47,13 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    docker.withRegistry('', 'dockerhub-credss') {
-                        // Backend
-                        def back = docker.build("${BACKEND_IMAGE}", 'Backend/odc')
-                        back.tag("backend-latest")
-                        
-                        // Frontend
-                        def front = docker.build("${FRONTEND_IMAGE}", 'Frontend')
-                        front.tag("frontend-latest")
-                    }
+                    // Construction de l'image Backend
+                    sh "docker build -t ${BACKEND_IMAGE} Backend/odc"
+                    sh "docker tag ${BACKEND_IMAGE} ${REGISTRY}:backend-latest"
+                    
+                    // Construction de l'image Frontend
+                    sh "docker build -t ${FRONTEND_IMAGE} Frontend"
+                    sh "docker tag ${FRONTEND_IMAGE} ${REGISTRY}:frontend-latest"
                 }
             }
         }
