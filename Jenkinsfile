@@ -71,34 +71,15 @@ pipeline {
                 script {
                     echo "ℹ️ Début du push des images vers le nouveau dépôt Docker Hub: ${REGISTRY}"
                     
-                    // Renommer les images existantes pour utiliser le nouveau dépôt si nécessaire
-                    sh '''
-                        OLD_REGISTRY="''' + OLD_REGISTRY + '''"
-                        BUILD_NUMBER="''' + BUILD_NUMBER + '''"
-                        BACKEND_IMAGE="''' + BACKEND_IMAGE + '''"
-                        BACKEND_LATEST="''' + BACKEND_LATEST + '''"
-                        FRONTEND_IMAGE="''' + FRONTEND_IMAGE + '''"
-                        FRONTEND_LATEST="''' + FRONTEND_LATEST + '''"
-                        
-                        # Vérifier et renommer les images existantes si nécessaire
-                        if docker image inspect $OLD_REGISTRY:backend-$BUILD_NUMBER &> /dev/null; then
-                            echo "Renommage de l'image backend avec le nouveau dépôt"
-                            docker tag $OLD_REGISTRY:backend-$BUILD_NUMBER $BACKEND_IMAGE
-                            docker tag $OLD_REGISTRY:backend-latest $BACKEND_LATEST || true
-                        fi
-                        
-                        if docker image inspect $OLD_REGISTRY:frontend-$BUILD_NUMBER &> /dev/null; then
-                            echo "Renommage de l'image frontend avec le nouveau dépôt"
-                            docker tag $OLD_REGISTRY:frontend-$BUILD_NUMBER $FRONTEND_IMAGE
-                            docker tag $OLD_REGISTRY:frontend-latest $FRONTEND_LATEST || true
-                        fi
-                    '''
+                    // Nous n'avons plus besoin de renommer les anciennes images car nous construisons directement avec le nouveau nom de dépôt
+                    echo "ℹ️ Les images ont été construites directement avec le nouveau nom de dépôt: ${REGISTRY}"
                     
                     // Push des images vers Docker Hub
                     try {
                         withCredentials([string(credentialsId: 'dockerhub-credss', variable: 'DOCKER_HUB_PASS')]) {
                             sh 'echo $DOCKER_HUB_PASS | docker login -u blacksaiyan --password-stdin || true'
                             
+                            // Pousser les images vers le nouveau dépôt avec des commandes individuelles
                             sh '''
                                 # Fonction pour pousser une image avec gestion d'erreur
                                 push_image() {
@@ -114,13 +95,13 @@ pipeline {
                                         echo "⚠️ L'image $image n'existe pas localement"
                                     fi
                                 }
+                                
+                                # Pousser les images vers le nouveau dépôt
+                                push_image "''' + BACKEND_IMAGE + '''" || true
+                                push_image "''' + BACKEND_LATEST + '''" || true
+                                push_image "''' + FRONTEND_IMAGE + '''" || true
+                                push_image "''' + FRONTEND_LATEST + '''" || true
                             '''
-                            
-                            // Pousser les images vers le nouveau dépôt avec des commandes individuelles
-                            sh "push_image ${BACKEND_IMAGE} || true"
-                            sh "push_image ${BACKEND_LATEST} || true"
-                            sh "push_image ${FRONTEND_IMAGE} || true"
-                            sh "push_image ${FRONTEND_LATEST} || true"
                             
                             sh 'docker logout || true'
                         }
