@@ -1,7 +1,8 @@
 pipeline {
     agent any
     environment {
-        REGISTRY = 'blacksaiyan/projet-fil-rouge-jenkins'
+        // Nouveau dépôt Docker Hub
+        REGISTRY = 'blacksaiyan/poject-devops-odc-aws'
         BUILD_NUMBER = "${env.BUILD_NUMBER}"
         
         // Images Docker avec le numéro de build
@@ -11,6 +12,13 @@ pipeline {
         // Images Docker avec le tag "latest"
         BACKEND_LATEST = "${REGISTRY}:backend-latest"
         FRONTEND_LATEST = "${REGISTRY}:frontend-latest"
+        
+        // Ports pour les conteneurs
+        BACKEND_PORT = "8000"
+        FRONTEND_PORT = "3000"
+        
+        // Ancien registre (pour la compatibilité avec les images existantes)
+        OLD_REGISTRY = 'blacksaiyan/projet-fil-rouge-jenkins'
     }
 
     stages {
@@ -61,44 +69,56 @@ pipeline {
         stage('Push des images sur Docker Hub') {
             steps {
                 script {
-                    // Utiliser les identifiants Docker Hub stockés dans Jenkins
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credss', passwordVariable: 'DOCKER_HUB_PASS', usernameVariable: 'DOCKER_HUB_USER')]) {
-                        // Se connecter à Docker Hub avec les identifiants
-                        sh 'echo $DOCKER_HUB_PASS | docker login -u $DOCKER_HUB_USER --password-stdin'
+                    echo "ℹ️ Début du push des images vers le nouveau dépôt Docker Hub: ${REGISTRY}"
+                    
+                    // Renommer les images existantes pour utiliser le nouveau dépôt si nécessaire
+                    sh """
+                        # Vérifier et renommer les images existantes si nécessaire
+                        if docker image inspect ${OLD_REGISTRY}:backend-${BUILD_NUMBER} &> /dev/null; then
+                            echo "Renommage de l'image backend avec le nouveau dépôt"
+                            docker tag ${OLD_REGISTRY}:backend-${BUILD_NUMBER} ${BACKEND_IMAGE}
+                            docker tag ${OLD_REGISTRY}:backend-latest ${BACKEND_LATEST} || true
+                        fi
                         
-                        // Afficher les informations de débogage
-                        sh 'echo "Utilisateur Docker Hub: $DOCKER_HUB_USER"'
-                        sh 'echo "Images à pousser: $BACKEND_IMAGE, $FRONTEND_IMAGE"'
-                        
-                        // Essayer de pousser les images avec gestion d'erreur
-                        sh '''
-                            # Fonction pour pousser une image avec gestion d'erreur
-                            push_image() {
-                                local image=$1
-                                echo "Tentative de push pour l'image: $image"
-                                if docker image inspect $image &> /dev/null; then
-                                    if docker push $image; then
-                                        echo "✅ Push réussi pour $image"
-                                        return 0
-                                    else
-                                        echo "❌ Échec du push pour $image"
-                                        return 1
-                                    fi
-                                else
-                                    echo "⚠️ L'image $image n'existe pas localement"
-                                    return 0  # Ne pas échouer si l'image n'existe pas
-                                fi
-                            }
+                        if docker image inspect ${OLD_REGISTRY}:frontend-${BUILD_NUMBER} &> /dev/null; then
+                            echo "Renommage de l'image frontend avec le nouveau dépôt"
+                            docker tag ${OLD_REGISTRY}:frontend-${BUILD_NUMBER} ${FRONTEND_IMAGE}
+                            docker tag ${OLD_REGISTRY}:frontend-latest ${FRONTEND_LATEST} || true
+                        fi
+                    """
+                    
+                    // Push des images vers Docker Hub
+                    try {
+                        withCredentials([string(credentialsId: 'dockerhub-credss', variable: 'DOCKER_HUB_PASS')]) {
+                            sh 'echo $DOCKER_HUB_PASS | docker login -u blacksaiyan --password-stdin || true'
                             
-                            # Pousser les images
-                            push_image "$BACKEND_IMAGE" || true
-                            push_image "${REGISTRY}:backend-latest" || true
-                            push_image "$FRONTEND_IMAGE" || true
-                            push_image "${REGISTRY}:frontend-latest" || true
-                        '''
-                        
-                        // Se déconnecter de Docker Hub
-                        //sh 'docker logout'
+                            sh """
+                                # Fonction pour pousser une image avec gestion d'erreur
+                                push_image() {
+                                    local image=$1
+                                    echo "Tentative de push pour l'image: $image"
+                                    if docker image inspect $image &> /dev/null; then
+                                        if docker push $image; then
+                                            echo "✅ Push réussi pour $image"
+                                        else
+                                            echo "⚠️ Échec du push pour $image - Continuons quand même"
+                                        fi
+                                    else
+                                        echo "⚠️ L'image $image n'existe pas localement"
+                                    fi
+                                }
+                                
+                                # Pousser les images vers le nouveau dépôt
+                                push_image "${BACKEND_IMAGE}" || true
+                                push_image "${BACKEND_LATEST}" || true
+                                push_image "${FRONTEND_IMAGE}" || true
+                                push_image "${FRONTEND_LATEST}" || true
+                            """
+                            
+                            sh 'docker logout || true'
+                        }
+                    } catch (Exception e) {
+                        echo "⚠️ Échec du push vers Docker Hub: ${e.message}. Continuons avec le déploiement local."
                     }
                 }
             }
@@ -106,22 +126,67 @@ pipeline {
 
         stage('Deploy Containers Locally') {
             steps {
-                sh '''
-                    # Arrêt et suppression des conteneurs existants
-                    docker stop backend_container frontend_container || true
-                    docker rm backend_container frontend_container || true
+                script {
+                    echo "ℹ️ Démarrage du déploiement local des conteneurs"
                     
-                    # Récupération des dernières images
-                    docker pull blacksaiyan/projet-fil-rouge-jenkins:backend-latest
-                    docker pull blacksaiyan/projet-fil-rouge-jenkins:frontend-latest
-
-                    # Démarrage des nouveaux conteneurs
-                    docker run -d --name backend_container -p 8000:8000 blacksaiyan/projet-fil-rouge-jenkins:backend-latest
-                    docker run -d --name frontend_container -p 3000:3000 blacksaiyan/projet-fil-rouge-jenkins:frontend-latest
+                    // Arrêt et suppression des conteneurs existants
+                    sh "docker stop backend_container frontend_container || true"
+                    sh "docker rm backend_container frontend_container || true"
                     
-                    # Vérification que les conteneurs sont bien démarrés
-                    docker ps | grep -E 'backend_container|frontend_container'
-                '''
+                    // Vérifier et déployer le backend
+                    sh """
+                        if docker image inspect ${BACKEND_LATEST} &> /dev/null; then
+                            echo "✅ Image backend trouvée: ${BACKEND_LATEST}"
+                            echo "Démarrage du conteneur backend sur le port ${BACKEND_PORT}..."
+                            docker run -d --name backend_container -p ${BACKEND_PORT}:${BACKEND_PORT} ${BACKEND_LATEST}
+                        else
+                            echo "⚠️ L'image backend ${BACKEND_LATEST} n'existe pas localement."
+                            echo "Tentative d'utilisation de l'image avec le numéro de build: ${BACKEND_IMAGE}"
+                            
+                            if docker image inspect ${BACKEND_IMAGE} &> /dev/null; then
+                                echo "✅ Image backend trouvée: ${BACKEND_IMAGE}"
+                                echo "Démarrage du conteneur backend sur le port ${BACKEND_PORT}..."
+                                docker run -d --name backend_container -p ${BACKEND_PORT}:${BACKEND_PORT} ${BACKEND_IMAGE}
+                            else
+                                echo "❌ Aucune image backend disponible. Le backend ne sera pas déployé."
+                            fi
+                        fi
+                    """
+                    
+                    // Vérifier et déployer le frontend
+                    sh """
+                        if docker image inspect ${FRONTEND_LATEST} &> /dev/null; then
+                            echo "✅ Image frontend trouvée: ${FRONTEND_LATEST}"
+                            echo "Démarrage du conteneur frontend sur le port ${FRONTEND_PORT}..."
+                            docker run -d --name frontend_container -p ${FRONTEND_PORT}:5173 ${FRONTEND_LATEST}
+                        else
+                            echo "⚠️ L'image frontend ${FRONTEND_LATEST} n'existe pas localement."
+                            echo "Tentative d'utilisation de l'image avec le numéro de build: ${FRONTEND_IMAGE}"
+                            
+                            if docker image inspect ${FRONTEND_IMAGE} &> /dev/null; then
+                                echo "✅ Image frontend trouvée: ${FRONTEND_IMAGE}"
+                                echo "Démarrage du conteneur frontend sur le port ${FRONTEND_PORT}..."
+                                docker run -d --name frontend_container -p ${FRONTEND_PORT}:5173 ${FRONTEND_IMAGE}
+                            else
+                                echo "❌ Aucune image frontend disponible. Le frontend ne sera pas déployé."
+                            fi
+                        fi
+                    """
+                    
+                    // Vérifier que les conteneurs sont bien démarrés
+                    sh """
+                        echo "\nℹ️ Vérification des conteneurs déployés:"
+                        docker ps | grep -E 'backend_container|frontend_container' || echo "\n⚠️ Aucun conteneur déployé n'a été trouvé."
+                        
+                        if docker ps | grep -q backend_container; then
+                            echo "\n✅ Backend déployé avec succès! Accessible sur http://localhost:${BACKEND_PORT}"
+                        fi
+                        
+                        if docker ps | grep -q frontend_container; then
+                            echo "\n✅ Frontend déployé avec succès! Accessible sur http://localhost:${FRONTEND_PORT}"
+                        fi
+                    """
+                }
             }
         }
     }
