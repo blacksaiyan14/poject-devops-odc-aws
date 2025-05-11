@@ -2,7 +2,15 @@
 
 # Attendre que la base de données soit prête
 echo "Attente de la base de données..."
-sleep 5
+
+# Attendre que la base de données soit disponible
+for i in {1..30}; do
+  echo "Tentative de connexion à la base de données... $i/30"
+  python -c "import psycopg2; psycopg2.connect(dbname='odcdb', user='odc', password='odc123', host='database', port='5432')" && break
+  sleep 2
+done
+
+echo "Base de données prête !"
 
 # Appliquer les migrations
 echo "Application des migrations..."
