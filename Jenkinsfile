@@ -74,23 +74,29 @@ pipeline {
                     // Push des images vers Docker Hub
                     try {
                         withCredentials([usernamePassword(credentialsId: 'docker-creds', passwordVariable: 'DOCKER_HUB_PASS', usernameVariable: 'DOCKER_HUB_USER')]) {
+                            // Créer un dépôt temporaire pour stocker les identifiants
                             sh '''
                                 echo "Tentative de connexion à Docker Hub avec l'utilisateur: $DOCKER_HUB_USER"
-                                echo "Vérification du dépôt: $REGISTRY"
                                 
-                                # Nettoyer les anciennes configurations Docker
-                                rm -f ~/.docker/config.json || true
+                                # Créer un répertoire temporaire pour les identifiants Docker
+                                mkdir -p /tmp/docker-config
                                 
-                                # Se connecter à Docker Hub
-                                echo $DOCKER_HUB_PASS | docker login -u $DOCKER_HUB_USER --password-stdin
+                                # Créer un fichier de configuration Docker personnalisé
+                                cat > /tmp/docker-config/config.json << EOF
+{
+  "auths": {
+    "https://index.docker.io/v1/": {
+      "auth": "$(echo -n "$DOCKER_HUB_USER:$DOCKER_HUB_PASS" | base64)"
+    }
+  }
+}
+EOF
                                 
-                                # Vérifier si la connexion a réussi
-                                if [ -f ~/.docker/config.json ]; then
-                                    echo "Configuration Docker trouvée, vérification des identifiants"
-                                    cat ~/.docker/config.json | grep -v "auth" || echo "Pas d'identifiants trouvés"
-                                else
-                                    echo "Fichier de configuration Docker non trouvé"
-                                fi
+                                # Utiliser ce fichier de configuration pour Docker
+                                export DOCKER_CONFIG=/tmp/docker-config
+                                
+                                # Vérifier la connexion
+                                docker login -u $DOCKER_HUB_USER --password-stdin < <(echo $DOCKER_HUB_PASS) || echo "Erreur de connexion"
                             '''
                             
                             // Pousser les images vers le nouveau dépôt avec des commandes individuelles
@@ -100,13 +106,18 @@ pipeline {
                                     local image=$1
                                     echo "Tentative de push pour l'image: $image"
                                     if docker image inspect $image &> /dev/null; then
+                                        # Utiliser le même répertoire de configuration Docker
+                                        export DOCKER_CONFIG=/tmp/docker-config
                                         if docker push $image; then
                                             echo "✅ Push réussi pour $image"
                                         else
-                                            echo "⚠️ Échec du push pour $image - Continuons quand même"
+                                            echo "⚠️ Échec du push pour $image - Vérifier que le dépôt existe sur Docker Hub"
+                                            echo "Conseil: Créez manuellement le dépôt 'poject-devops-odc-aws' sur Docker Hub si ce n'est pas déjà fait"
+                                            return 1
                                         fi
                                     else
                                         echo "⚠️ L'image $image n'existe pas localement"
+                                        return 1
                                     fi
                                 }
                                 
