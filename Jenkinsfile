@@ -2,7 +2,7 @@ pipeline {
     agent any
     environment {
         // Nouveau dépôt Docker Hub
-        REGISTRY = 'blacksaiyan/poject-devops-odc-aws'
+        REGISTRY = 'blacksaiyan14/poject-devops-odc-aws'
         BUILD_NUMBER = "${env.BUILD_NUMBER}"
         
         // Images Docker avec le numéro de build
@@ -16,9 +16,6 @@ pipeline {
         // Ports pour les conteneurs
         BACKEND_PORT = "8000"
         FRONTEND_PORT = "3000"
-        
-        // Ancien registre (pour la compatibilité avec les images existantes)
-        OLD_REGISTRY = 'blacksaiyan/projet-fil-rouge-jenkins'
     }
 
     stages {
