@@ -7,12 +7,10 @@ pipeline {
         // Images Docker avec le numéro de build
         BACKEND_IMAGE = "${REGISTRY}:backend-${BUILD_NUMBER}"
         FRONTEND_IMAGE = "${REGISTRY}:frontend-${BUILD_NUMBER}"
-        MIGRATE_IMAGE = "${REGISTRY}:migrate-${BUILD_NUMBER}"
         
         // Images Docker avec le tag "latest"
         BACKEND_LATEST = "${REGISTRY}:backend-latest"
         FRONTEND_LATEST = "${REGISTRY}:frontend-latest"
-        MIGRATE_LATEST = "${REGISTRY}:migrate-latest"
     }
 
     stages {
@@ -57,10 +55,6 @@ pipeline {
                         // Frontend
                         def front = docker.build("${FRONTEND_IMAGE}", 'Frontend')
                         front.tag("frontend-latest")
-
-                        // Migrate
-                        def migrate = docker.build("${MIGRATE_IMAGE}", 'Migrate')
-                        migrate.tag("migrate-latest")
                     }
                 }
             }
@@ -74,8 +68,6 @@ pipeline {
                         sh "docker push ${REGISTRY}:backend-latest"
                         sh 'docker push $FRONTEND_IMAGE'
                         sh "docker push ${REGISTRY}:frontend-latest"
-                        sh 'docker push $MIGRATE_IMAGE'
-                        sh "docker push ${REGISTRY}:migrate-latest"
                     }
                 }
             }
@@ -89,17 +81,13 @@ pipeline {
                         docker rm backend_container || true
                         docker stop frontend_container || true
                         docker rm frontend_container || true
-                        docker stop migrate_container || true
-                        docker rm migrate_container || true
                     '''
                     
                     sh "docker pull ${REGISTRY}:backend-latest"
                     sh "docker pull ${REGISTRY}:frontend-latest"
-                    sh "docker pull ${REGISTRY}:migrate-latest"
 
                     sh "docker run -d --name backend_container -p 8000:8000 ${REGISTRY}:backend-latest"
                     sh "docker run -d --name frontend_container -p 3000:3000 ${REGISTRY}:frontend-latest"
-                    sh "docker run -d --name migrate_container ${REGISTRY}:migrate-latest"
                 }
             }
         }
