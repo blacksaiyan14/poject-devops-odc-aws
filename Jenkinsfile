@@ -73,7 +73,7 @@ pipeline {
                     
                     // Push des images vers Docker Hub
                     try {
-                        withCredentials([usernamePassword(credentialsId: 'dockerhub-credss', passwordVariable: 'DOCKER_HUB_PASS', usernameVariable: 'DOCKER_HUB_USER')]) {
+                        withCredentials([usernamePassword(credentialsId: 'docker-creds', passwordVariable: 'DOCKER_HUB_PASS', usernameVariable: 'DOCKER_HUB_USER')]) {
                             sh 'echo $DOCKER_HUB_PASS | docker login -u $DOCKER_HUB_USER --password-stdin || true'
                             
                             // Pousser les images vers le nouveau dépôt avec des commandes individuelles
