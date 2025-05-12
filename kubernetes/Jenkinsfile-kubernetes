@@ -136,20 +136,19 @@ EOF
         }
 
         stage('Deploy to Kubernetes') {
-            stage('Deploy to Kubernetes') {
-                steps {
-                    withKubeConfig([credentialsId: 'kubernetes-config', serverUrl: 'https://192.168.58.2:8443']) {
-                        sh 'kubectl apply -f kubernetes/namespace.yaml'
-                        sh 'kubectl apply -f kubernetes/postgres-secret.yaml'
-                        sh 'kubectl apply -f kubernetes/postgres-pvc.yaml'
-                        sh 'kubectl apply -f kubernetes/postgres-deployment.yaml'
-                        sh 'kubectl apply -f kubernetes/postgres-service.yaml'
-                        sh 'kubectl apply -f kubernetes/backend-deployment.yaml'
-                        sh 'kubectl apply -f kubernetes/backend-service.yaml'
-                        sh 'kubectl apply -f kubernetes/frontend-deployment.yaml'
-                        sh 'kubectl apply -f kubernetes/frontend-service.yaml'
-                        sh 'kubectl apply -f kubernetes/ingress.yaml'
-                    }
+            steps {
+                withKubeConfig([credentialsId: 'kubernetes-config', serverUrl: 'https://192.168.58.2:8443']) {
+                    sh 'kubectl apply -f kubernetes/namespace.yaml'
+                    sh 'kubectl apply -f kubernetes/postgres-secret.yaml'
+                    sh 'kubectl apply -f kubernetes/postgres-pvc.yaml'
+                    sh 'kubectl apply -f kubernetes/postgres-deployment.yaml'
+                    sh 'kubectl apply -f kubernetes/postgres-service.yaml'
+                    sh 'kubectl apply -f kubernetes/backend-deployment.yaml'
+                    sh 'kubectl apply -f kubernetes/backend-service.yaml'
+                    sh 'kubectl apply -f kubernetes/frontend-deployment.yaml'
+                    sh 'kubectl apply -f kubernetes/frontend-service.yaml'
+                    sh 'kubectl apply -f kubernetes/ingress.yaml'
+                }
             }
         }
     }
