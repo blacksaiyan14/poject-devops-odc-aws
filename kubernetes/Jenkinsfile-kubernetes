@@ -15,6 +15,9 @@ pipeline {
         
         // Namespace Kubernetes
         K8S_NAMESPACE = "odc-project"
+        
+        // Chemin vers les fichiers Kubernetes
+        K8S_FILES_PATH = "kubernetes"
     }
 
     stages {
@@ -133,88 +136,20 @@ EOF
         }
 
         stage('Deploy to Kubernetes') {
-            steps {
-                script {
-                    echo "ℹ️ Démarrage du déploiement Kubernetes"
-                    
-                    // Vérifier si Minikube est en cours d'exécution
-                    sh '''
-                        if ! minikube status | grep -q "Running"; then
-                            echo "Minikube n'est pas en cours d'exécution. Démarrage de Minikube..."
-                            minikube start
-                        else
-                            echo "Minikube est déjà en cours d'exécution."
-                        fi
-                        
-                        # Activer l'addon Ingress si ce n'est pas déjà fait
-                        minikube addons enable ingress
-                    '''
-                    
-                    // Créer le namespace s'il n'existe pas
-                    sh '''
-                        if ! kubectl get namespace ${K8S_NAMESPACE} &> /dev/null; then
-                            echo "Création du namespace ${K8S_NAMESPACE}..."
-                            kubectl apply -f kubernetes/namespace.yaml
-                        else
-                            echo "Le namespace ${K8S_NAMESPACE} existe déjà."
-                        fi
-                    '''
-                    
-                    // Déployer les secrets et les PVC
-                    sh '''
-                        echo "Déploiement des secrets et PVC..."
-                        kubectl apply -f kubernetes/postgres-secret.yaml
-                        kubectl apply -f kubernetes/postgres-pvc.yaml
-                    '''
-                    
-                    // Déployer PostgreSQL
-                    sh '''
-                        echo "Déploiement de PostgreSQL..."
-                        kubectl apply -f kubernetes/postgres-deployment.yaml
-                        kubectl apply -f kubernetes/postgres-service.yaml
-                        
-                        # Attendre que PostgreSQL soit prêt
-                        echo "Attente que PostgreSQL soit prêt..."
-                        kubectl wait --namespace=${K8S_NAMESPACE} --for=condition=ready pod -l app=postgres --timeout=120s || true
-                    '''
-                    
-                    // Déployer le backend
-                    sh '''
-                        echo "Déploiement du backend..."
-                        kubectl apply -f kubernetes/backend-deployment.yaml
-                        kubectl apply -f kubernetes/backend-service.yaml
-                    '''
-                    
-                    // Déployer le frontend
-                    sh '''
-                        echo "Déploiement du frontend..."
-                        kubectl apply -f kubernetes/frontend-deployment.yaml
-                        kubectl apply -f kubernetes/frontend-service.yaml
-                    '''
-                    
-                    // Déployer l'Ingress
-                    sh '''
-                        echo "Déploiement de l'Ingress..."
-                        kubectl apply -f kubernetes/ingress.yaml
-                    '''
-                    
-                    // Afficher les informations sur les pods
-                    sh '''
-                        echo "Pods déployés:"
-                        kubectl get pods -n ${K8S_NAMESPACE}
-                        
-                        echo "Services déployés:"
-                        kubectl get services -n ${K8S_NAMESPACE}
-                        
-                        echo "Ingress déployé:"
-                        kubectl get ingress -n ${K8S_NAMESPACE}
-                        
-                        # Afficher l'URL pour accéder à l'application
-                        echo "Pour accéder à l'application, ajoutez l'entrée suivante à votre fichier /etc/hosts:"
-                        echo "$(minikube ip) odc.local"
-                        echo "Puis accédez à l'application via: http://odc.local"
-                    '''
-                }
+            stage('Deploy to Kubernetes') {
+                steps {
+                    withKubeConfig([credentialsId: 'kubernetes-config', serverUrl: 'https://192.168.58.2:8443']) {
+                        sh 'kubectl apply -f kubernetes/namespace.yaml'
+                        sh 'kubectl apply -f kubernetes/postgres-secret.yaml'
+                        sh 'kubectl apply -f kubernetes/postgres-pvc.yaml'
+                        sh 'kubectl apply -f kubernetes/postgres-deployment.yaml'
+                        sh 'kubectl apply -f kubernetes/postgres-service.yaml'
+                        sh 'kubectl apply -f kubernetes/backend-deployment.yaml'
+                        sh 'kubectl apply -f kubernetes/backend-service.yaml'
+                        sh 'kubectl apply -f kubernetes/frontend-deployment.yaml'
+                        sh 'kubectl apply -f kubernetes/frontend-service.yaml'
+                        sh 'kubectl apply -f kubernetes/ingress.yaml'
+                    }
             }
         }
     }
