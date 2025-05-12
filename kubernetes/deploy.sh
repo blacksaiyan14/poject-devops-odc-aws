@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Vérifier si Minikube est en cours d'exécution
-echo "Vérification de l'état de Minikube..."
-if ! minikube status | grep -q "Running"; then
-  echo "Minikube n'est pas en cours d'exécution. Démarrage de Minikube..."
-  minikube start
-else
-  echo "Minikube est déjà en cours d'exécution."
-fi
+# # Vérifier si Minikube est en cours d'exécution
+# echo "Vérification de l'état de Minikube..."
+# if ! minikube status | grep -q "Running"; then
+#   echo "Minikube n'est pas en cours d'exécution. Démarrage de Minikube..."
+#   minikube start
+# else
+#   echo "Minikube est déjà en cours d'exécution."
+# fi
 
 # Activer l'addon Ingress si ce n'est pas déjà fait
 echo "Activation de l'addon Ingress..."
