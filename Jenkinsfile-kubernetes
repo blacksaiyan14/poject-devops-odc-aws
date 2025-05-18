@@ -74,7 +74,7 @@ EOF
                 echo "Deploying to Kubernetes 🚢"
                 sh '''
                     # Ensure Minikube is running
-                    minikube status || minikube start
+                    // minikube status || minikube start
 
                     # Apply Kubernetes manifests
                     kubectl apply -f manifests/database/postgres-secret.yml
