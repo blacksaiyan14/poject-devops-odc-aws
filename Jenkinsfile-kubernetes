@@ -19,14 +19,14 @@ pipeline {
         stage('Build Backend Docker Image') {
             steps {
                 echo "🐳 Building the backend image"
-                sh "docker build -t ${DOCKERHUB_USER}/${BACKEND_REPO}:latest -f ./Backend/Dockerfile ./Backend"
+                sh "docker build -t ${DOCKERHUB_USER}/${BACKEND_REPO}:latest -f ./Backend/odc/dockerfile ./Backend/odc"
             }
         }
 
         stage('Build Frontend Docker Image') {
             steps {
                 echo "🐳 Building the frontend image"
-                sh "docker build -t ${DOCKERHUB_USER}/${FRONTEND_REPO}:latest -f ./Frontend/Dockerfile ./Frontend"
+                sh "docker build -t ${DOCKERHUB_USER}/${FRONTEND_REPO}:latest -f ./Frontend/dockerfile ./Frontend"
             }
         }
 
