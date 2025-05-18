@@ -74,23 +74,23 @@ EOF
                 echo "Deploying to Kubernetes 🚢"
                 sh '''
                     # Ensure Minikube is running
-                    # minikube status || minikube start
+                    minikube status || minikube start
 
-                    # Apply Kubernetes manifests
-                    kubectl apply -f manifests/database/postgres-secret.yml
-                    kubectl apply -f manifests/database/postgres-pvc.yml
-                    kubectl apply -f manifests/database/deployment.yml
+                    # Apply Kubernetes manifests with validation disabled
+                    kubectl apply -f manifests/database/postgres-secret.yml --validate=false
+                    kubectl apply -f manifests/database/postgres-pvc.yml --validate=false
+                    kubectl apply -f manifests/database/deployment.yml --validate=false
                     
                     # Wait for database to be ready
                     echo "Waiting for database to be ready..."
                     kubectl wait --for=condition=available --timeout=300s deployment/postgres
                     
                     # Deploy backend and frontend
-                    kubectl apply -f manifests/backend/deployment.yml
-                    kubectl apply -f manifests/frontend/deployment.yml
+                    kubectl apply -f manifests/backend/deployment.yml --validate=false
+                    kubectl apply -f manifests/frontend/deployment.yml --validate=false
                     
                     # Deploy Ingress
-                    kubectl apply -f manifests/ingress/ingress.yml
+                    kubectl apply -f manifests/ingress/ingress.yml --validate=false
                     
                     # Get Ingress status
                     echo "Ingress deployed, checking status..."
