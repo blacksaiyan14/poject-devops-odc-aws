@@ -1,0 +1,107 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_CREDENTIALS = 'docker-creds'
+        DOCKERHUB_USER = 'blacksaiyan14'
+        BACKEND_REPO = 'odc-backend'
+        FRONTEND_REPO = 'odc-frontend'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo "Cloning repository from git 📥"
+                checkout scm
+            }
+        }
+
+        stage('Build Backend Docker Image') {
+            steps {
+                echo "🐳 Building the backend image"
+                sh "docker build -t ${DOCKERHUB_USER}/${BACKEND_REPO}:latest -f ./Backend/Dockerfile ./Backend"
+            }
+        }
+
+        stage('Build Frontend Docker Image') {
+            steps {
+                echo "🐳 Building the frontend image"
+                sh "docker build -t ${DOCKERHUB_USER}/${FRONTEND_REPO}:latest -f ./Frontend/Dockerfile ./Frontend"
+            }
+        }
+
+        stage('Push Docker Images') {
+            steps {
+                echo "Pushing images to Docker Hub 🚀"
+                withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push ${DOCKERHUB_USER}/${BACKEND_REPO}:latest
+                        docker push ${DOCKERHUB_USER}/${FRONTEND_REPO}:latest
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo "Deploying to Kubernetes 🚢"
+                sh '''
+                    # Ensure Minikube is running
+                    minikube status || minikube start
+
+                    # Apply Kubernetes manifests
+                    kubectl apply -f manifests/database/postgres-secret.yml
+                    kubectl apply -f manifests/database/postgres-pvc.yml
+                    kubectl apply -f manifests/database/deployment.yml
+                    
+                    # Wait for database to be ready
+                    echo "Waiting for database to be ready..."
+                    kubectl wait --for=condition=available --timeout=300s deployment/postgres
+                    
+                    # Deploy backend and frontend
+                    kubectl apply -f manifests/backend/deployment.yml
+                    kubectl apply -f manifests/frontend/deployment.yml
+                    
+                    # Deploy Ingress
+                    kubectl apply -f manifests/ingress/ingress.yml
+                    
+                    # Get Ingress status
+                    echo "Ingress deployed, checking status..."
+                    kubectl get ingress odc-ingress
+                '''
+            }
+        }
+
+        stage('Update /etc/hosts for local access') {
+            steps {
+                echo "Updating /etc/hosts for local access 📝"
+                sh '''
+                    # Get Minikube IP
+                    MINIKUBE_IP=$(minikube ip)
+                    
+                    # Check if odc.local is already in /etc/hosts
+                    if grep -q "odc.local" /etc/hosts; then
+                        echo "odc.local already in /etc/hosts, updating if needed"
+                        sudo sed -i "s/.*odc.local/$MINIKUBE_IP odc.local/" /etc/hosts
+                    else
+                        echo "Adding odc.local to /etc/hosts"
+                        echo "$MINIKUBE_IP odc.local" | sudo tee -a /etc/hosts
+                    fi
+                    
+                    echo "You can now access the application at http://odc.local"
+                '''
+            }
+        }
+    }
+
+    post {
+        failure {
+            echo "❌ Pipeline failed. Check Jenkins for details."
+        }
+        success {
+            echo "✅ Pipeline succeeded! Application is deployed on Kubernetes with Ingress. 🎉"
+            echo "Access the application at http://odc.local"
+        }
+    }
+}

@@ -13,6 +13,17 @@ spec:
       labels:
         app: backend
     spec:
+      initContainers:
+      - name: django-migrations
+        image: blacksaiyan14/odc-backend:latest
+        command: ["python3", "manage.py", "migrate"]
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "150m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
       containers:
       - name: backend
         image: blacksaiyan14/odc-backend:latest
