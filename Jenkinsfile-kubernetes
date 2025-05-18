@@ -33,12 +33,38 @@ pipeline {
         stage('Push Docker Images') {
             steps {
                 echo "Pushing images to Docker Hub 🚀"
-                withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${DOCKERHUB_USER}/${BACKEND_REPO}:latest
-                        docker push ${DOCKERHUB_USER}/${FRONTEND_REPO}:latest
-                    '''
+                try {
+                    withCredentials([usernamePassword(credentialsId: 'docker-creds', passwordVariable: 'DOCKER_HUB_PASS', usernameVariable: 'DOCKER_HUB_USER')]) {
+                        // Créer un dépôt temporaire pour stocker les identifiants
+                        sh '''
+                            echo "Tentative de connexion à Docker Hub avec l'utilisateur: $DOCKER_HUB_USER"
+                            
+                            # Créer un répertoire temporaire pour les identifiants Docker
+                            mkdir -p /tmp/docker-config
+                            
+                            # Créer un fichier de configuration Docker personnalisé
+                            AUTH_BASE64=$(echo -n "$DOCKER_HUB_USER:$DOCKER_HUB_PASS" | base64)
+                            cat > /tmp/docker-config/config.json << EOF
+{
+  "auths": {
+    "https://index.docker.io/v1/": {
+      "auth": "$AUTH_BASE64"
+    }
+  }
+}
+EOF
+                            
+                            # Utiliser ce fichier de configuration pour Docker
+                            export DOCKER_CONFIG=/tmp/docker-config
+                            
+                            # Pousser les images
+                            docker push ${DOCKERHUB_USER}/${BACKEND_REPO}:latest
+                            docker push ${DOCKERHUB_USER}/${FRONTEND_REPO}:latest
+                        '''
+                    }
+                } catch (Exception e) {
+                    echo "Erreur lors du push des images: ${e.message}"
+                    throw e
                 }
             }
         }
