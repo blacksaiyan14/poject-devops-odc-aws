@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres  # Must match selector
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:latest
+        envFrom:
+        - secretRef:
+            name: postgres-credentials
+        ports:
+        - containerPort: 5432  # Explicitly expose port
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgres-data
+        readinessProbe:  # Add health check
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - odc
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"  # Increased minimum
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+
+---
+# Corrected Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: database
+spec:
+  selector:
+    app: postgres  # Must match deployment labels
+  ports:
+    - port: 5432
+      targetPort: 5432
