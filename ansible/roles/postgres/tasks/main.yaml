@@ -1,0 +1,5 @@
+- name: Déployer PostgreSQL
+  kubernetes.core.k8s:
+    kubeconfig: ~/.kube/config
+    state: present
+    definition: "{{ lookup('template', '../../manifests/postgres.yaml') }}"

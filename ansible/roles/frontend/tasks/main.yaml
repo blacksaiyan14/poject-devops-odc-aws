@@ -1,0 +1,5 @@
+- name: Déployer le frontend React
+  kubernetes.core.k8s:
+    kubeconfig: ~/.kube/config
+    state: present
+    definition: "{{ lookup('template', '../../manifests/frontend.yaml') }}"
