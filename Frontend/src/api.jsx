@@ -1,7 +1,7 @@
 
 import axios from "axios";
 const axiosInstance = axios.create({
-    baseURL: "http://odc.local/api/",
+    baseURL: "http://api.local/api/",
 });
 
 export const UseAxios = () => {

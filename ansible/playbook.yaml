@@ -1,0 +1,58 @@
+- name: Déploiement complet de l'application sur kubernetes
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - ../secrets/k8s-secret.yaml
+  
+  vars:
+    K8s_namespace: fullstack-app
+    
+  pre_tasks:
+    - name: Creer le namespace
+      kubernetes.core.k8s:
+        kubeconfig: ~/.kube/config
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ K8s_namespace }}"
+  
+  roles: 
+    - postgres
+    - backend
+    - frontend
+    
+  tasks:
+    - name: Creer deployer les services backend et frontend
+      kubernetes.core.k8s:
+        kubeconfig: ~/.kube/config
+        state: present
+        definition: "{{ lookup('file', './manifests/services.yaml') }}"
+
+    - name: Deployer l'ingress
+      kubernetes.core.k8s:
+        kubeconfig: ~/.kube/config
+        state: present
+        definition: "{{ lookup('template', './manifests/ingress.yaml') }}"
+        
+    - name: Attendre que le pod backend soit prêt
+      kubernetes.core.k8s_info:
+        kubeconfig: ~/.kube/config
+        kind: Pod
+        namespace: "{{ K8s_namespace }}"
+        label_selectors:
+          - app=backend
+      register: backend_pods
+      until: backend_pods.resources | length > 0 and backend_pods.resources[0].status.phase == 'Running' and backend_pods.resources[0].status.containerStatuses[0].ready
+      retries: 10
+      delay: 10
+      
+    - name: Exécuter les migrations Django
+      kubernetes.core.k8s_exec:
+        kubeconfig: ~/.kube/config
+        namespace: "{{ K8s_namespace }}"
+        pod: "{{ backend_pods.resources[0].metadata.name }}"
+        command: python manage.py migrate
+      when: backend_pods.resources | length > 0

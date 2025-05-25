@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://odc.local/api/', 
+  baseURL: 'http://api.local/api/', 
 });
 
 
